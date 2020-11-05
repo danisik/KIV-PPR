@@ -58,7 +58,8 @@ namespace NeuronNet
 		{
 			value = sum;
 		} 
-		else {
+		else 
+		{
 			value = tanh(sum);
 		}
 	}

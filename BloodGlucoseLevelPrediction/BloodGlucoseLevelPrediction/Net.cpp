@@ -13,7 +13,7 @@ namespace NeuronNet
 		Layer* output_layer = new Layer(1.0);
 
 		// Create neurons for input layer.
-		for (int i = 0; i < il_neurons_count; i++) 
+		for (unsigned int i = 0; i < il_neurons_count; i++)
 		{
 			input_layer->add_neuron(new Neuron(i, 0.0, hl1_neurons_count));
 		}
@@ -21,8 +21,7 @@ namespace NeuronNet
 		layers.push_back(input_layer);
 
 		// Create neurons for first hidden layer.
-		// TanH function.
-		for (int i = 0; i < hl1_neurons_count; i++)
+		for (unsigned int i = 0; i < hl1_neurons_count; i++)
 		{
 			hidden_layer_1->add_neuron(new Neuron(i, 0.0, hl2_neurons_count));
 		}
@@ -30,8 +29,7 @@ namespace NeuronNet
 		layers.push_back(hidden_layer_1);
 
 		// Create neurons for second hidden layer.
-		// TanH function.
-		for (int i = 0; i < hl2_neurons_count; i++)
+		for (unsigned int i = 0; i < hl2_neurons_count; i++)
 		{
 			hidden_layer_2->add_neuron(new Neuron(i, 0.0, ol_neurons_count));
 		}
@@ -39,8 +37,7 @@ namespace NeuronNet
 		layers.push_back(hidden_layer_2);
 
 		// Create neurons for output layer.
-		// SoftMax function.
-		for (int i = 0; i < ol_neurons_count; i++)
+		for (unsigned int i = 0; i < ol_neurons_count; i++)
 		{
 			double value = 0.0;
 
@@ -76,6 +73,8 @@ namespace NeuronNet
 		// Start feed forward for every neuron in hidden / output layer.
 		for (unsigned int i = 1; i < layers.size(); i++) {
 
+			bool last_layer = i == (layers.size() - 1) ? true : false;
+
 			Layer* previous_layer = layers.at(i - 1);
 			Layer* current_layer = layers.at(i);
 
@@ -84,17 +83,16 @@ namespace NeuronNet
 
 			for (unsigned int j = 0; j < current_neurons.size(); j++)
 			{
-				bool last_layer = i == (layers.size() - 1) ? true : false;
-
 				current_neurons.at(j)->feed_forward(previous_neurons, previous_layer->get_bias(), current_layer->get_bias(), last_layer);
 
 				if (last_layer)
 				{
-					softmax(current_neurons, previous_neurons.at(0)->get_connections().size());
+					softmax(current_neurons, current_neurons.size());
 				}
 			}
 		}
 
+		/*
 		std::cout << "\nOutput:\n";
 		Layer* output_layer = layers.at(3);
 		for (int i = 0; i < output_layer->get_neurons().size(); i++) 
@@ -102,6 +100,7 @@ namespace NeuronNet
 			std::cout << output_layer->get_neurons().at(i)->get_value() << "\n";
 		}
 		std::cout << "\n";
+		*/
 	}
 
 	void Net::back_propagation(std::vector<double> target_values)
@@ -119,7 +118,7 @@ namespace NeuronNet
 		error = sqrt(error);
 	}
 
-	void Net::softmax(std::vector<Neuron*> output_neurons, int size)
+	void Net::softmax(std::vector<Neuron*> output_neurons, unsigned int size)
 	{
 		// Calculate output neurons value by SoftMax function.
 		double neuron_value = 0.0;

@@ -3,10 +3,11 @@
 
 namespace Measured_data
 {
-	Measured_data::Measured_data(const unsigned char* p_timestamp, double p_IG)
+	Measured_data::Measured_data(tm* p_time, double p_IG, uint64_t p_segment_id)
 	{
-		timestamp = p_timestamp;
+		time = p_time;
 		IG = p_IG;
+		segment_id = p_segment_id;
 	}
 
 	double Measured_data::get_IG()
@@ -14,8 +15,13 @@ namespace Measured_data
 		return IG;
 	}
 
-	const unsigned char* Measured_data::get_Timestamp()
+	uint64_t Measured_data::get_segment_id()
 	{
-		return timestamp;
+		return segment_id;
+	}
+
+	tm* Measured_data::get_time()
+	{
+		return time;
 	}
 }

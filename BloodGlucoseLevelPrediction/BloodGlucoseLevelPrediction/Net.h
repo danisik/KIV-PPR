@@ -34,7 +34,7 @@ namespace NeuronNet
 		private:
 				double risk(const double bg);
 				double Band_Index_To_Level(const size_t index);
-				void softmax(std::vector<Neuron*> output_neurons, int size);
+				void softmax(std::vector<Neuron*> output_neurons, unsigned int size);
 	};
 }
 

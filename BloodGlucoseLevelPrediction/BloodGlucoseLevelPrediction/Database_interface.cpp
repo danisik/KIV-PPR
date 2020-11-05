@@ -45,9 +45,11 @@ namespace Database_interface
 		std::vector<Measured_data::Measured_data*> data_vector;
 		const unsigned char* measure_dat;
 		double IG = 0;
+		uint64_t segment_id = 0;
 		int return_code = 0;
+		tm* time;
 
-		std::string query = "select measuredat, ist from measuredvalue;";
+		std::string query = "select measuredat, ist, segmentid from measuredvalue;";
 
 		if (create_statement(query.c_str(), &stmt)) {
 
@@ -56,10 +58,26 @@ namespace Database_interface
 			{
 				measure_dat = sqlite3_column_text(stmt, 0);
 				IG = sqlite3_column_double(stmt, 1);
+				segment_id = sqlite3_column_int64(stmt, 2);
 
-				Measured_data::Measured_data* data = new Measured_data::Measured_data(measure_dat, IG);
+				int year, month, day, hour, min, sec;
+				int exit_code = sscanf_s((char*) measure_dat, "%4d-%2d-%2dT%2d:%2d:%2d", &year, &month, &day, &hour, &min, &sec);				
 
-				data_vector.push_back(data);
+				// Date time must contains 6 values - year, month, day, hours, minutes and seconds.
+				if (exit_code == 6)
+				{
+					time = new tm();
+					time->tm_year = year - 1900;
+					time->tm_mon = month;
+					time->tm_mday = day;
+					time->tm_hour = hour;
+					time->tm_min = min;
+					time->tm_sec = sec;
+
+					Measured_data::Measured_data* data = new Measured_data::Measured_data(time, IG, segment_id);
+
+					data_vector.push_back(data);
+				}
 			}
 		}		
 
