@@ -14,6 +14,6 @@ namespace NeuronNet
 				Layer(double p_bias);
 				void add_neuron(Neuron* neuron);
 				std::vector<Neuron*> get_neurons();
-				double get_bias();
+				double get_bias();				
 	};
 }

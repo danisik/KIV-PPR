@@ -80,21 +80,31 @@ int main(int argc, char** argv)
     uint64_t current_segment_id = 0;    
     time_t current_first_time;
     Measured_data::Measured_data* current_measure_data;
-    std::vector<double> values;    
+    std::vector<double> values;
+    std::vector<double> target_values;
     bool time_spacing_ok = false;
     int time_difference_seconds = 0;
 
-    begin = std::chrono::steady_clock::now();    
+    begin = std::chrono::steady_clock::now();
+
+    tm tmm;
 
     for (unsigned int i = 0; i < measured_data.size(); i++) 
     {    
         current_measure_data = measured_data.at(i);
         current_segment_id = current_measure_data->get_segment_id();
-        current_time = mktime(current_measure_data->get_time());
+
+        tmm = *current_measure_data->get_time();
+        current_time = mktime(&tmm);
 
         if (values_count == 8) 
         {
             neuron_net->feed_forward(values);
+            
+
+            // TODO: get 8 values 
+            //neuron_net->back_propagation(values);
+
             values.clear();
             values_count = 0;
         }

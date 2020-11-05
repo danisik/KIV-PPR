@@ -22,6 +22,8 @@ namespace NeuronNet
 		static constexpr double Inv_Band_Size = 1.0 / Band_Size;        //abs(Low_Threshold-Band_Size)/Low_Threshold
 		static constexpr double Half_Band_Size = 0.5 / Inv_Band_Size;
 		static constexpr size_t Band_Count = ol_neurons_count + 2;
+		static constexpr double eta = 0.3;
+		static constexpr double alpha = 0.5;
 
 		private:
 				std::vector<Layer*> layers;

@@ -87,7 +87,8 @@ namespace NeuronNet
 
 				if (last_layer)
 				{
-					softmax(current_neurons, current_neurons.size());
+					// TODO: uncomment when softmax iterative implemented.
+					//softmax(current_neurons, current_neurons.size());
 				}
 			}
 		}
@@ -105,7 +106,7 @@ namespace NeuronNet
 
 	void Net::back_propagation(std::vector<double> target_values)
 	{
-		Layer* output_layer = layers.at(3);
+		Layer* output_layer = layers.at(layers.size() - 1);
 		double error = 0.0;
 
 		for (unsigned int i = 0; i < output_layer->get_neurons().size(); i++)
@@ -116,6 +117,40 @@ namespace NeuronNet
 
 		error = error / output_layer->get_neurons().size();
 		error = sqrt(error);
+
+		std::cout << error << "\n";
+
+		// Calculate gradients in output layer.
+		// TODO: Use derivation of softmax function.
+		std::vector<Neuron*> output_neurons = output_layer->get_neurons();
+		for (unsigned int i = 0; i < output_neurons.size(); i++)
+		{
+			output_neurons.at(i)->calculate_output_neuron_gradient(target_values.at(i));
+		}		
+
+		// Calculate gradients in (L-1, L-2, ..., 2) layers - hidden layers. 
+		for (unsigned int i = (layers.size() - 2); i > 0; i--)
+		{
+			std::vector<Neuron*> current_hidden_neurons = layers.at(i)->get_neurons();
+			std::vector<Neuron*> next_layer_neurons = layers.at(i + 1)->get_neurons();
+
+			for (unsigned int j = 0; j < current_hidden_neurons.size(); j++)
+			{
+				current_hidden_neurons.at(j)->calculate_hidden_neuron_gradient(next_layer_neurons);
+			}
+		}
+
+		// Set new weights in all connections.
+		for (unsigned int i = 0; i < layers.size(); i++)
+		{
+			std::vector<Neuron*> current_neurons = layers.at(i)->get_neurons();
+			std::vector<Neuron*> next_neurons = layers.at(i + 1)->get_neurons();
+
+			for (unsigned int j = 0; j < current_neurons.size(); j++)
+			{
+				current_neurons.at(j)->update_connections_weight(next_neurons, eta, alpha);
+			}
+		}
 	}
 
 	void Net::softmax(std::vector<Neuron*> output_neurons, unsigned int size)

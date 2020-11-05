@@ -31,6 +31,16 @@ namespace NeuronNet
 		return value;
 	}
 
+	double Neuron::get_gradient()
+	{
+		return gradient;
+	}
+
+	void Neuron::set_gradient(double p_gradient)
+	{
+		gradient = p_gradient;
+	}
+
 	std::vector<Connection*> Neuron::get_connections()
 	{
 		return connections;
@@ -56,11 +66,49 @@ namespace NeuronNet
 
 		if (last_layer)
 		{
-			value = sum;
+			value = tanh(sum);
 		} 
 		else 
 		{
 			value = tanh(sum);
+		}
+	}
+
+	void Neuron::calculate_hidden_neuron_gradient(std::vector<Neuron*> next_neurons)
+	{
+		// Sum DOW.
+		double sum = 0.0;
+		for (unsigned int i = 0; i < next_neurons.size(); i++)
+		{
+			sum += connections.at(i)->get_weight() * next_neurons.at(i)->get_gradient();
+		}
+
+		gradient = sum * (1 - value * value);
+	}
+
+	double Neuron::calculate_output_neuron_gradient(double target_value)
+	{
+		double v_gradient = target_value - value;
+
+		// TODO: USE DERIVATION OF SOFTMAX.
+		v_gradient = v_gradient * (1 - value * value);
+
+		gradient = v_gradient;
+
+		return v_gradient;
+	}
+
+	void Neuron::update_connections_weight(std::vector<Neuron*> next_neurons, double eta, double alpha)
+	{
+		for (unsigned int i = 0; i < connections.size(); i++)
+		{
+			Connection* connection = connections.at(i);
+			double delta_weight = connection->get_delta_weight();
+
+			delta_weight = (eta * value * next_neurons.at(i)->get_gradient()) + (alpha * delta_weight);
+
+			connection->set_weight(connection->get_weight() + delta_weight);
+			connection->set_delta_weight(delta_weight);
 		}
 	}
 }
