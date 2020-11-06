@@ -6,7 +6,7 @@
 namespace NeuronNet
 {
 	Net::Net()
-	{
+	{			
 		Layer* input_layer = new Layer(1.0);
 		Layer* hidden_layer_1 = new Layer(1.0);
 		Layer* hidden_layer_2 = new Layer(1.0);
@@ -15,7 +15,7 @@ namespace NeuronNet
 		// Create neurons for input layer.
 		for (unsigned int i = 0; i < il_neurons_count; i++)
 		{
-			input_layer->add_neuron(new Neuron(i, 0.0, hl1_neurons_count));
+		input_layer->add_neuron(new Neuron(i, 0.0, hl1_neurons_count));
 		}
 
 		layers.push_back(input_layer);
@@ -36,26 +36,21 @@ namespace NeuronNet
 
 		layers.push_back(hidden_layer_2);
 
+
+		band_values.push_back(Low_Threshold);
+
 		// Create neurons for output layer.
 		for (unsigned int i = 0; i < ol_neurons_count; i++)
 		{
-			double value = 0.0;
+			output_layer->add_neuron(new Neuron(i, 0.0, 0));
 
-			if (i != 0 && i != (ol_neurons_count - 1)) 
+			if (i > 0 && i < (ol_neurons_count - 1))
 			{
-				value = Band_Index_To_Level(i);
+				band_values.push_back(Band_Index_To_Level(i));
 			}
-			else if (i == 0)
-			{
-				value = Low_Threshold;
-			}
-			else
-			{
-				value = High_Threshold;
-			}
+		}
 
-			output_layer->add_neuron(new Neuron(i, value, 0));
-		}		
+		band_values.push_back(High_Threshold);
 
 		layers.push_back(output_layer);
 	}
@@ -65,7 +60,7 @@ namespace NeuronNet
 		Layer* input_layer = layers.at(0);
 		std::vector<Neuron*> input_layer_neurons = input_layer->get_neurons();
 
-		for (unsigned int i = 0; i <input_layer_neurons.size(); i++) 
+		for (unsigned int i = 0; i < input_layer_neurons.size(); i++)
 		{
 			input_layer_neurons.at(i)->set_value(risk(input_values.at(i)));
 		}
@@ -96,7 +91,7 @@ namespace NeuronNet
 		/*
 		std::cout << "\nOutput:\n";
 		Layer* output_layer = layers.at(3);
-		for (int i = 0; i < output_layer->get_neurons().size(); i++) 
+		for (int i = 0; i < output_layer->get_neurons().size(); i++)
 		{
 			std::cout << output_layer->get_neurons().at(i)->get_value() << "\n";
 		}
@@ -104,51 +99,97 @@ namespace NeuronNet
 		*/
 	}
 
-	void Net::back_propagation(std::vector<double> target_values)
+	void Net::prepare_single_output_target_value(std::vector<double>& prepared_values, double target_value)
 	{
-		Layer* output_layer = layers.at(layers.size() - 1);
-		double error = 0.0;
+		prepared_values.clear();
 
-		for (unsigned int i = 0; i < output_layer->get_neurons().size(); i++)
+		int target_value_index = -1;
+		bool index_found = false;
+
+		for (unsigned int i = 0; i < ol_neurons_count; i++)
 		{
-			double delta = target_values.at(i) - output_layer->get_neurons().at(i)->get_value();
-			error += delta * delta;
-		}
+			prepared_values.push_back(-1);
 
-		error = error / output_layer->get_neurons().size();
-		error = sqrt(error);
-
-		std::cout << error << "\n";
-
-		// Calculate gradients in output layer.
-		// TODO: Use derivation of softmax function.
-		std::vector<Neuron*> output_neurons = output_layer->get_neurons();
-		for (unsigned int i = 0; i < output_neurons.size(); i++)
-		{
-			output_neurons.at(i)->calculate_output_neuron_gradient(target_values.at(i));
-		}		
-
-		// Calculate gradients in (L-1, L-2, ..., 2) layers - hidden layers. 
-		for (unsigned int i = (layers.size() - 2); i > 0; i--)
-		{
-			std::vector<Neuron*> current_hidden_neurons = layers.at(i)->get_neurons();
-			std::vector<Neuron*> next_layer_neurons = layers.at(i + 1)->get_neurons();
-
-			for (unsigned int j = 0; j < current_hidden_neurons.size(); j++)
+			if (!index_found)
 			{
-				current_hidden_neurons.at(j)->calculate_hidden_neuron_gradient(next_layer_neurons);
+				if (
+					(i == 0 && target_value <= band_values.at(i))
+					||
+					(i > 0 && i < 30 && target_value > band_values.at(i - 1) && target_value <= band_values.at(i))
+					||
+					(i == 30 && target_value > band_values.at(i - 1) && target_value < band_values.at(i + 1))
+					||
+					(i == 31 && target_value >= band_values.at(i))
+					)
+				{
+					index_found = true;
+					target_value_index = i;
+				}
 			}
 		}
 
-		// Set new weights in all connections.
-		for (unsigned int i = 0; i < layers.size(); i++)
-		{
-			std::vector<Neuron*> current_neurons = layers.at(i)->get_neurons();
-			std::vector<Neuron*> next_neurons = layers.at(i + 1)->get_neurons();
+		prepared_values.at(target_value_index) = 1;
+	}	
 
-			for (unsigned int j = 0; j < current_neurons.size(); j++)
+	void Net::back_propagation(std::vector<double> target_values)
+	{
+		std::vector<double> prepared_values;
+
+		for (unsigned int target_value_index = 0; target_value_index < target_values.size(); target_value_index++)
+		{
+			prepare_single_output_target_value(prepared_values, target_values.at(target_value_index));
+
+			Layer* output_layer = layers.at(layers.size() - 1);
+			
+			double current_error = 0.0;
+			double relative_error = 0.0;
+
+			for (unsigned int i = 0; i < output_layer->get_neurons().size(); i++)
 			{
-				current_neurons.at(j)->update_connections_weight(next_neurons, eta, alpha);
+				double delta = prepared_values.at(i) - output_layer->get_neurons().at(i)->get_value();
+				current_error += delta * delta;
+
+				relative_error += abs(prepared_values.at(i) - output_layer->get_neurons().at(i)->get_value()) / prepared_values.at(i);
+			}
+
+			relative_error = relative_error / output_layer->get_neurons().size();
+			current_error = current_error / output_layer->get_neurons().size();
+
+			current_error = sqrt(current_error) + relative_error;
+			//current_error = sqrt(current_error);
+
+			error = ((error * smoothing_factor) + current_error) / (smoothing_factor + 1.0);
+
+			// Calculate gradients in output layer.
+			// TODO: Use derivation of softmax function.
+			std::vector<Neuron*> output_neurons = output_layer->get_neurons();
+			for (unsigned int i = 0; i < output_neurons.size(); i++)
+			{
+				output_neurons.at(i)->calculate_output_neuron_gradient(prepared_values.at(i));
+			}
+
+			// Calculate gradients in (L-1, L-2, ..., 2) layers - hidden layers. 
+			for (unsigned int i = (layers.size() - 2); i > 0; i--)
+			{
+				std::vector<Neuron*> current_hidden_neurons = layers.at(i)->get_neurons();
+				std::vector<Neuron*> next_layer_neurons = layers.at(i + 1)->get_neurons();
+
+				for (unsigned int j = 0; j < current_hidden_neurons.size(); j++)
+				{
+					current_hidden_neurons.at(j)->calculate_hidden_neuron_gradient(next_layer_neurons);
+				}
+			}
+
+			// Set new weights in all connections.
+			for (unsigned int i = 0; i < (layers.size() - 1); i++)
+			{
+				std::vector<Neuron*> current_neurons = layers.at(i)->get_neurons();
+				std::vector<Neuron*> next_neurons = layers.at(i + 1)->get_neurons();
+
+				for (unsigned int j = 0; j < current_neurons.size(); j++)
+				{
+					current_neurons.at(j)->update_connections_weight(next_neurons, eta, alpha);
+				}
 			}
 		}
 	}
@@ -199,5 +240,10 @@ namespace NeuronNet
 		if (index >= Band_Count - 1) return High_Threshold + Half_Band_Size;
 
 		return Low_Threshold + static_cast<double>(index - 1) * Band_Size + Half_Band_Size;
+	}
+
+	double Net::get_error()
+	{
+		return error;
 	}
 }

@@ -64,103 +64,145 @@ int main(int argc, char** argv)
         exit(-1);
     }
 
-    // Set srand seed using current time.
-    time_t current_time;
-    srand(time(&current_time));
+    for (int ii = 0; ii < 10; ii++) {
 
-    begin = std::chrono::steady_clock::now();
 
-    NeuronNet::Net* neuron_net = new NeuronNet::Net();
 
-    end = std::chrono::steady_clock::now();
-    std::cout << "Creating neural network = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
+        // Set srand seed using current time.
+        time_t current_time;
+        srand(time(&current_time));
 
-    int values_count = 0;
-    uint64_t previous_segment_id = 0;
-    uint64_t current_segment_id = 0;    
-    time_t current_first_time;
-    Measured_data::Measured_data* current_measure_data;
-    std::vector<double> values;
-    std::vector<double> target_values;
-    bool time_spacing_ok = false;
-    int time_difference_seconds = 0;
+        begin = std::chrono::steady_clock::now();
 
-    begin = std::chrono::steady_clock::now();
+        NeuronNet::Net* neuron_net = new NeuronNet::Net();
 
-    tm tmm;
+        end = std::chrono::steady_clock::now();
+        std::cout << "Creating neural network = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
 
-    for (unsigned int i = 0; i < measured_data.size(); i++) 
-    {    
-        current_measure_data = measured_data.at(i);
-        current_segment_id = current_measure_data->get_segment_id();
+        int values_count = 0;
 
-        tmm = *current_measure_data->get_time();
-        current_time = mktime(&tmm);
+        uint64_t previous_segment_id = 0;
+        uint64_t current_segment_id = 0;
+        std::vector<double> values;
+        time_t current_first_time;
+        Measured_data::Measured_data* current_measure_data;
 
-        if (values_count == 8) 
+        uint64_t previous_target_segment_id = 0;
+        uint64_t current_target_segment_id = 0;
+        std::vector<double> target_values;
+        time_t target_first_time;
+        Measured_data::Measured_data* target_measure_data;
+        time_t current_target_time;
+
+        bool current_time_spacing_ok = false;
+        int current_time_difference_seconds = 0;
+
+        bool target_time_spacing_ok = false;
+        int target_time_difference_seconds = 0;
+
+        begin = std::chrono::steady_clock::now();
+
+        tm tmm;
+
+        int prediction_time_offset = minute_prediction / 5;
+
+        long int counting = 0;
+
+        for (unsigned int i = 0; i < measured_data.size(); i++)
         {
-            neuron_net->feed_forward(values);
-            
+            current_measure_data = measured_data.at(i);
+            current_segment_id = current_measure_data->get_segment_id();
 
-            // TODO: get 8 values 
-            //neuron_net->back_propagation(values);
-
-            values.clear();
-            values_count = 0;
-        }
-        
-        if (values_count == 0)
-        {
-            current_first_time = current_time;
-            previous_segment_id = current_segment_id;
-        }
-
-        // Check segment id of current data and previous data.
-        if (current_segment_id == previous_segment_id)
-        {
-
-            time_spacing_ok = false;
-            
-            time_difference_seconds = abs(difftime(current_first_time, current_time));            
-
-            if (values_count < 7)
+            // Check if index of predicted value is lower that size of vector.
+            if ((i + prediction_time_offset) >= measured_data.size())
             {
-                time_spacing_ok = compare_times_difference(time_difference_seconds, 5, values_count);
+                break;
+            }
 
-                if (values_count == 6 && time_spacing_ok)
+            target_measure_data = measured_data.at(i + prediction_time_offset);
+            current_target_segment_id = target_measure_data->get_segment_id();
+
+            tmm = *current_measure_data->get_time();
+            current_time = mktime(&tmm);
+
+            tmm = *target_measure_data->get_time();
+            current_target_time = mktime(&tmm);
+
+            if (values_count == 8)
+            {
+                neuron_net->feed_forward(values);
+                neuron_net->back_propagation(target_values);
+
+                values.clear();
+                target_values.clear();
+                values_count = 0;
+
+                counting++;
+            }
+
+            if (values_count == 0)
+            {
+                current_first_time = current_time;
+                previous_segment_id = current_segment_id;
+
+                target_first_time = current_target_time;
+                previous_target_segment_id = current_target_segment_id;
+            }
+
+            // Check segment id of current data and previous data.
+            if (current_segment_id == previous_segment_id && previous_target_segment_id == current_target_segment_id)
+            {
+                current_time_spacing_ok = false;
+                target_time_spacing_ok = false;
+
+                current_time_difference_seconds = abs(difftime(current_first_time, current_time));
+                target_time_difference_seconds = abs(difftime(target_first_time, current_target_time));
+
+                if (values_count < 7)
                 {
-                    i++;
+                    current_time_spacing_ok = compare_times_difference(current_time_difference_seconds, 5, values_count);
+                    target_time_spacing_ok = compare_times_difference(target_time_difference_seconds, 5, values_count);
+
+                    if (values_count == 6 && current_time_spacing_ok && target_time_spacing_ok)
+                    {
+                        i++;
+                    }
+                }
+                else
+                {
+                    // Calculate time difference for t-40 minutes. (values_count + 1) is for skipping 8th value and go for 9.
+                    current_time_spacing_ok = compare_times_difference(current_time_difference_seconds, 5, values_count + 1);
+                    target_time_spacing_ok = compare_times_difference(target_time_difference_seconds, 5, values_count + 1);
+                }
+
+                if (current_time_spacing_ok && target_time_spacing_ok)
+                {
+                    values.push_back(current_measure_data->get_IG());
+                    target_values.push_back(target_measure_data->get_IG());
+                    values_count++;
+                }
+                else
+                {
+                    values.clear();
+                    target_values.clear();
+                    values_count = 0;
                 }
             }
             else
             {
-                // Calculate time difference for t-40 minutes. (values_count + 1) is for skipping 8th value and go for 9.
-                time_spacing_ok = compare_times_difference(time_difference_seconds, 5, values_count + 1);
-            }
-
-            if (time_spacing_ok)
-            {
-                values.push_back(current_measure_data->get_IG());
-                values_count++;
-            }
-            else
-            {
                 values.clear();
+                target_values.clear();
                 values_count = 0;
             }
+
         }
-        else
-        {
-            values.clear();
-            values_count = 0;
-        }        
-        
+
+        end = std::chrono::steady_clock::now();
+        std::cout << "Training neural network = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
+
+        std::cout << "Error = " << neuron_net->get_error() << "\n";
+        std::cout << "End successfully, successful runs = " << counting << "\n";
     }
-
-    end = std::chrono::steady_clock::now();
-    std::cout << "Training neural network = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
-
-    std::cout << "End successfully, measured data size = " << measured_data.size() << "\n";
 }
 
 
