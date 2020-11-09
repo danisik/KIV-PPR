@@ -79,12 +79,12 @@ namespace NeuronNet
 			for (unsigned int j = 0; j < current_neurons.size(); j++)
 			{
 				current_neurons.at(j)->feed_forward(previous_neurons, previous_layer->get_bias(), current_layer->get_bias(), last_layer);
+			}
 
-				if (last_layer)
-				{
-					// TODO: uncomment when softmax iterative implemented.
-					//softmax(current_neurons, current_neurons.size());
-				}
+			if (last_layer)
+			{
+				// TODO: uncomment when softmax iterative implemented.
+				softmax(current_neurons, current_neurons.size());
 			}
 		}
 
@@ -108,7 +108,7 @@ namespace NeuronNet
 
 		for (unsigned int i = 0; i < ol_neurons_count; i++)
 		{
-			prepared_values.push_back(-1);
+			prepared_values.push_back(0.0);
 
 			if (!index_found)
 			{
@@ -128,7 +128,36 @@ namespace NeuronNet
 			}
 		}
 
-		prepared_values.at(target_value_index) = 1;
+		prepared_values.at(target_value_index) = target_value;
+
+		int size = prepared_values.size();
+
+		double neuron_value = 0.0;
+		double maximum = -INFINITY;
+		double sum = 0.0;
+
+		for (unsigned int i = 0; i < size; i++) {
+
+			neuron_value = prepared_values.at(i);
+
+			if (maximum < neuron_value) {
+
+				maximum = neuron_value;
+			}
+		}
+
+		for (unsigned int i = 0; i < size; i++) {
+
+			neuron_value = prepared_values.at(i);
+			sum += exp(neuron_value - maximum);
+		}
+
+		double constant = maximum + log(sum);
+
+		for (unsigned int i = 0; i < size; i++) {
+
+			prepared_values.at(i) = exp(prepared_values.at(i) - constant);
+		}
 	}	
 
 	void Net::back_propagation(std::vector<double> target_values)
@@ -149,24 +178,37 @@ namespace NeuronNet
 				double delta = prepared_values.at(i) - output_layer->get_neurons().at(i)->get_value();
 				current_error += delta * delta;
 
-				relative_error += abs(prepared_values.at(i) - output_layer->get_neurons().at(i)->get_value()) / prepared_values.at(i);
+				// abs(vypoèítaná hodnota - namìøená hodnota)/namìøená hodnota
+
+				// TODO: uncomment -> zakomentováno protože to pak hází chybovost pøes 5000%.
+				//relative_error += abs(output_layer->get_neurons().at(i)->get_value() - prepared_values.at(i)) / prepared_values.at(i);				
 			}
 
 			relative_error = relative_error / output_layer->get_neurons().size();
 			current_error = current_error / output_layer->get_neurons().size();
 
 			current_error = sqrt(current_error) + relative_error;
-			//current_error = sqrt(current_error);
 
 			error = ((error * smoothing_factor) + current_error) / (smoothing_factor + 1.0);
 
 			// Calculate gradients in output layer.
-			// TODO: Use derivation of softmax function.
-			std::vector<Neuron*> output_neurons = output_layer->get_neurons();
+			std::vector<Neuron*> output_neurons = output_layer->get_neurons();						
 			for (unsigned int i = 0; i < output_neurons.size(); i++)
 			{
-				output_neurons.at(i)->calculate_output_neuron_gradient(prepared_values.at(i));
+				/*
+				output_neurons.at(i)->set_gradient(
+					(prepared_values.at(i) - output_neurons.at(i)->get_value())
+					* 
+					(1 - (output_neurons.at(i)->get_value() * output_neurons.at(i)->get_value()))
+				);
+				*/
+
+				// Viz: https://stackoverflow.com/questions/57631507/how-can-i-take-the-derivative-of-the-softmax-output-in-back-prop.
+				output_neurons.at(i)->set_gradient(prepared_values.at(i) - output_neurons.at(i)->get_value());
 			}
+						
+			//softmax_derivative(output_neurons, output_neurons.size(), prepared_values);
+			
 
 			// Calculate gradients in (L-1, L-2, ..., 2) layers - hidden layers. 
 			for (unsigned int i = (layers.size() - 2); i > 0; i--)
@@ -201,7 +243,7 @@ namespace NeuronNet
 		double maximum = -INFINITY;
 		double sum = 0.0;
 
-		for (unsigned int i = 0; i < size; ++i) {
+		for (unsigned int i = 0; i < size; i++) {
 
 			neuron_value = output_neurons.at(i)->get_value();
 
@@ -211,7 +253,7 @@ namespace NeuronNet
 			}
 		}
 
-		for (unsigned int i = 0; i < size; ++i) {
+		for (unsigned int i = 0; i < size; i++) {
 
 			neuron_value = output_neurons.at(i)->get_value();
 			sum += exp(neuron_value - maximum);
@@ -219,10 +261,44 @@ namespace NeuronNet
 
 		double constant = maximum + log(sum);
 
-		for (unsigned int i = 0; i < size; ++i) {
+		for (unsigned int i = 0; i < size; i++) {
 
 			Neuron* output_neuron = output_neurons.at(i);
 			output_neuron->set_value(exp(output_neuron->get_value() - constant));
+		}
+	}
+
+	void Net::softmax_derivative(std::vector<Neuron*> output_neurons, unsigned int size, std::vector<double> target_values)
+	{
+		double sum = 0.0;
+		double xj_value = 0.0;
+
+		for (unsigned int i = 0; i < size; i++) {
+
+			sum += exp(output_neurons.at(i)->get_value());
+		}
+
+		for (unsigned int i = 0; i < size; i++) {
+
+			Neuron* output_neuron = output_neurons.at(i);
+			double delta = target_values.at(i) - output_neuron->get_value();
+
+			// Calculate xi_value;
+			double new_value = exp(output_neuron->get_value()) / sum;
+			
+			if (i == 0)
+			{
+				// When i = j, then xi_value = xj_value.
+				xj_value = new_value;
+
+				new_value = xj_value - (xj_value * new_value);
+			}
+			else
+			{
+				new_value = 0 - (xj_value * new_value);
+			}
+
+			output_neuron->set_gradient(delta * new_value);
 		}
 	}
 
@@ -244,6 +320,10 @@ namespace NeuronNet
 
 	double Net::get_error()
 	{
+		// Round error to 4 decimal values.
+		int error_cut = error * 10000;
+		error = (double) error_cut / 10000.0;
+
 		return error;
 	}
 }

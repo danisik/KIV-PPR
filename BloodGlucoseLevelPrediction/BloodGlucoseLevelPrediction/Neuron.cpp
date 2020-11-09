@@ -66,7 +66,8 @@ namespace NeuronNet
 
 		if (last_layer)
 		{
-			value = tanh(sum);
+			//value = tanh(sum);
+			value = sum;
 		} 
 		else 
 		{
@@ -84,18 +85,6 @@ namespace NeuronNet
 		}
 
 		gradient = sum * (1 - value * value);
-	}
-
-	double Neuron::calculate_output_neuron_gradient(double target_value)
-	{
-		double v_gradient = target_value - value;
-
-		// TODO: USE DERIVATION OF SOFTMAX.
-		v_gradient = v_gradient * (1 - value * value);
-
-		gradient = v_gradient;
-
-		return v_gradient;
 	}
 
 	void Neuron::update_connections_weight(std::vector<Neuron*> next_neurons, double eta, double alpha)
