@@ -8,16 +8,13 @@
 namespace NeuronNet
 {
 	class Net
-	{		
-		static constexpr double smoothing_factor = 100;
+	{			
 
 		static constexpr int il_neurons_count = 8;
 		static constexpr int hl1_neurons_count = 16; 
 		static constexpr int hl2_neurons_count = 26;
 		static constexpr int ol_neurons_count = 32;
 
-
-	
 		static constexpr double Low_Threshold = 3.0;            //mmol/L below which a medical attention is needed
 		static constexpr double High_Threshold = 13.0;            //dtto above
 		static constexpr size_t Internal_Bound_Count = 30;      //number of bounds inside the thresholds
@@ -29,6 +26,8 @@ namespace NeuronNet
 
 		static constexpr double eta = 0.2;				// Learning rate [0.0..1.0].
 		static constexpr double alpha = 0.5;			// Last weight change multiplier [0.0..n].
+
+		static constexpr double smoothing_factor = 100;
 
 		private:
 				std::vector<Layer*> layers;

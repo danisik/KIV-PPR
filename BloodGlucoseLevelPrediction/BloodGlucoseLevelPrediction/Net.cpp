@@ -83,7 +83,6 @@ namespace NeuronNet
 
 			if (last_layer)
 			{
-				// TODO: uncomment when softmax iterative implemented.
 				softmax(current_neurons, current_neurons.size());
 			}
 		}

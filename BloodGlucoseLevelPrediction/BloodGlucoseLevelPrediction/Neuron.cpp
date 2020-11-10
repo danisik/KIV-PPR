@@ -84,7 +84,15 @@ namespace NeuronNet
 			sum += connections.at(i)->get_weight() * next_neurons.at(i)->get_gradient();
 		}
 
-		gradient = sum * (1 - value * value);
+		gradient = sum * calculate_tanh_derivative();
+	}
+
+	double Neuron::calculate_tanh_derivative()
+	{
+		double numerator = exp(value) - exp(-value);
+		double denominator = exp(value) + exp(-value);
+
+		return (1 - ((numerator * numerator) / (denominator * denominator)));
 	}
 
 	void Neuron::update_connections_weight(std::vector<Neuron*> next_neurons, double eta, double alpha)
@@ -94,10 +102,10 @@ namespace NeuronNet
 			Connection* connection = connections.at(i);
 			double delta_weight = connection->get_delta_weight();
 
-			delta_weight = (eta * value * next_neurons.at(i)->get_gradient()) + (alpha * delta_weight);
+			double new_delta_weight = (eta * value * next_neurons.at(i)->get_gradient()) + (alpha * delta_weight);
 
-			connection->set_weight(connection->get_weight() + delta_weight);
-			connection->set_delta_weight(delta_weight);
+			connection->set_weight(connection->get_weight() + new_delta_weight);
+			connection->set_delta_weight(new_delta_weight);
 		}
 	}
 }
